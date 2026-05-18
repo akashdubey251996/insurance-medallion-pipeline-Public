@@ -1,0 +1,42 @@
+resources:
+  jobs:
+    ETL_pipeline:
+      name: ETL_pipeline
+      tasks:
+        - task_key: generate_chunks
+          notebook_task:
+            notebook_path: /Workspace/Users/databrickspreprod@gmail.com/bronze/generate_chunks_new
+            source: WORKSPACE
+        - task_key: process_tables
+          depends_on:
+            - task_key: generate_chunks
+          for_each_task:
+            inputs: "{{tasks.generate_chunks.values.chunks}}"
+            concurrency: 4
+            task:
+              task_key: strategy_router
+              notebook_task:
+                notebook_path: /Workspace/Users/databrickspreprod@gmail.com/bronze/strategy_router
+                base_parameters:
+                  strategy: "{{input.strategy}}"
+                  source_table: "{{input.source_table}}"
+                  target_table: "{{input.target_table}}"
+                  chunk_column: "{{input.chunk_column}}"
+                  start_id: "{{input.start_id}}"
+                  end_id: "{{input.end_id}}"
+                  partition_column: "{{input.partition_column}}"
+                  lower_bound: "{{input.lower_bound}}"
+                  upper_bound: "{{input.upper_bound}}"
+                  num_partitions: "{{input.num_partitions}}"
+                  user: "{{input.user}}"
+                  password: "{{input.password}}"
+                  driver: "{{input.driver}}"
+                  jdbc_url: "{{input.jdbc_url}}"
+                  source_name: "{{input.source_name}}"
+                source: WORKSPACE
+              max_retries: 3
+              min_retry_interval_millis: 60000
+              disable_auto_optimization: false
+      queue:
+        enabled: true
+      performance_target: PERFORMANCE_OPTIMIZED
